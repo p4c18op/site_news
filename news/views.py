@@ -1,9 +1,13 @@
 from django.contrib.auth.mixins import PermissionRequiredMixin
+from django.contrib.auth.decorators import login_required
 from django.urls import reverse_lazy
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
-from .models import New
+from .models import New, News, Subscription
 from .forms import NewForm
 from .filters import NewFilter
+from django.views.decorators.csrf import csrf_protect
+from django.shortcuts import render
+from django.db.models import Exists, OuterRef
 
 
 
@@ -48,3 +52,33 @@ class NewDelete(PermissionRequiredMixin, DeleteView):
     model = New
     template_name = 'new_delete.html'
     success_url = reverse_lazy('new_list')
+
+@login_required
+@csrf_protect
+def subscriptions(request):
+    if request.method == 'POST':
+        news_id = request.POST.get('news_id')
+        news = News.objects.get(id=news_id)
+        action = request.POST.get('action')
+
+        if action == 'subscribe':
+            Subscription.objects.create(user=request.user, news=news)
+        elif action == 'unsubscribe':
+            Subscription.objects.filter(
+                user=request.user,
+                news=news,
+            ).delete()
+
+    news_with_subscriptions = News.objects.annotate(
+        user_subscribed=Exists(
+            Subscription.objects.filter(
+                user=request.user,
+                news=OuterRef('pk'),
+            )
+        )
+    ).order_by('name')
+    return render(
+        request,
+        'subscriptions.html',
+        {'news': news_with_subscriptions},
+    )

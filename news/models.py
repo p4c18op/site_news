@@ -1,5 +1,6 @@
 from django.db import models
 from django.urls import reverse
+from django.contrib.auth.models import User
 
 class New(models.Model):
     name = models.CharField(
@@ -25,3 +26,15 @@ class News(models.Model):
 
     def __str__(self):
         return self.name.title()
+
+class Subscription(models.Model):
+    user = models.ForeignKey(
+        to=User,
+        on_delete=models.CASCADE,
+        related_name='subscriptions',
+    )
+    news = models.ForeignKey(
+        to='News',
+        on_delete=models.CASCADE,
+        related_name='subscriptions',
+    )
